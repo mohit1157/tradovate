@@ -5,6 +5,10 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
+# Tradovate API
+websockets==12.0
+aiohttp==3.9.1
+
 # Google Gemini AI
 google-generativeai==0.3.2
 
@@ -15,7 +19,6 @@ praw==7.7.1
 # News APIs
 newsapi-python==0.2.7
 requests==2.31.0
-aiohttp==3.9.1
 
 # Database
 sqlalchemy==2.0.25
@@ -24,7 +27,6 @@ aiosqlite==0.19.0
 # Utilities
 numpy==1.26.3
 pandas==2.1.4
-asyncio==3.4.3
 cachetools==5.3.2
 tenacity==8.2.3
 

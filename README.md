@@ -1,57 +1,69 @@
 # Autonomous Futures Trading Bot
 
-An AI-powered autonomous futures trading bot that integrates NinjaTrader 8 with sentiment analysis from social media (Twitter/X, Reddit) and financial news, using Google Gemini for intelligent decision making.
+An AI-powered autonomous futures trading bot that connects directly to **Tradovate** for execution, with sentiment analysis from social media (Twitter/X, Reddit) and financial news, using Google Gemini for intelligent decision making.
+
+**Works on Mac, Linux, and Windows** - No NinjaTrader required!
 
 ## Features
 
-### Sentiment Analysis
-- **Twitter/X Integration**: Real-time sentiment from financial Twitter, tracking cashtags and influential accounts
-- **Reddit Integration**: Monitors r/wallstreetbets, r/futures, r/stocks and other trading subreddits
-- **News Integration**: Aggregates sentiment from major financial news sources (NewsAPI, Alpha Vantage)
-- **Gemini AI**: Uses Google's Gemini Pro for advanced sentiment analysis and decision making
+### Market Data & Execution (Tradovate)
+- **Real-time Market Data**: Live quotes, DOM, and tick data via WebSocket
+- **Direct Order Execution**: Place market, limit, stop, and bracket orders
+- **Position Management**: Track positions and P&L in real-time
+- **Cross-Platform**: Runs on Mac, Linux, Windows - no Windows-only software needed
 
-### Trading Execution (NinjaTrader 8)
-- **Technical Analysis**: EMA crossover strategy with ATR-based risk management
-- **External Signal Mode**: Receives AI-powered signals from the sentiment analysis server
-- **Hybrid Approach**: Combines sentiment with technical signals for better decisions
+### Technical Analysis
+- **EMA Crossover Strategy**: Fast/slow EMA with configurable periods
+- **ATR-based Risk Management**: Dynamic stops and targets based on volatility
+- **Real-time Indicator Calculation**: Updates with every new bar
+
+### Sentiment Analysis
+- **Twitter/X Integration**: Real-time sentiment from financial Twitter
+- **Reddit Integration**: Monitors r/wallstreetbets, r/futures, r/stocks
+- **News Integration**: Aggregates from NewsAPI, Alpha Vantage
+- **Gemini AI**: Advanced sentiment analysis and decision making
 
 ### Risk Management
-- **Daily Loss Limits**: Automatic kill switch when daily loss exceeds threshold
-- **Trade Limits**: Maximum trades per day to prevent overtrading
-- **Position Sizing**: Confidence-based position sizing
-- **Trailing Stops**: Optional ATR-based trailing stops
-- **Cooldown Period**: Minimum time between trades
+- **Daily Loss Limits**: Automatic kill switch when limit reached
+- **Trade Limits**: Maximum trades per day
+- **Position Sizing**: Confidence-based sizing
+- **Cooldown Period**: Prevents overtrading
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    DATA SOURCES                              │
-├──────────────┬──────────────┬──────────────┬────────────────┤
-│   Twitter    │    Reddit    │    News      │  Market Data   │
-└──────┬───────┴──────┬───────┴──────┬───────┴────────┬───────┘
-       │              │              │                │
-       └──────────────┼──────────────┘                │
-                      ▼                               │
-       ┌──────────────────────────────┐              │
-       │    GEMINI AI ANALYZER        │              │
-       │    (Sentiment Analysis)      │              │
-       └──────────────┬───────────────┘              │
-                      ▼                               │
-       ┌──────────────────────────────┐              │
-       │    SIGNAL SERVER (Python)    │              │
-       │    http://127.0.0.1:8787     │              │
-       └──────────────┬───────────────┘              │
-                      │ HTTP Polling                  │
-                      ▼                               ▼
-       ┌──────────────────────────────────────────────┐
-       │         NINJATRADER 8 STRATEGY               │
-       │         (AutonomousFuturesBot.cs)            │
-       └──────────────────────────────────────────────┘
+│                    SENTIMENT SOURCES                         │
+├──────────────┬──────────────┬───────────────────────────────┤
+│   Twitter    │    Reddit    │    News APIs                   │
+└──────┬───────┴──────┬───────┴──────┬────────────────────────┘
+       └──────────────┼──────────────┘
+                      ▼
+       ┌──────────────────────────────┐
+       │       GEMINI AI ANALYZER     │
+       │     (Sentiment Analysis)     │
+       └──────────────┬───────────────┘
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              PYTHON TRADING BOT (runs on any OS)            │
+├─────────────────────────────────────────────────────────────┤
+│  • Live market data via WebSocket                           │
+│  • Technical indicators (EMA, ATR)                          │
+│  • Combines sentiment + technical signals                   │
+│  • Risk management & position sizing                        │
+│  • Order execution via REST API                             │
+└─────────────────────────────────────────────────────────────┘
+                      │
+                      ▼ (WebSocket + REST API)
+              ┌───────────────┐
+              │   TRADOVATE   │
+              │   (Sim/Live)  │
+              └───────────────┘
                       │
                       ▼
               ┌───────────────┐
-              │ Futures Market │
+              │ Futures Market│
+              │ (CME, etc.)   │
               └───────────────┘
 ```
 
@@ -59,13 +71,11 @@ An AI-powered autonomous futures trading bot that integrates NinjaTrader 8 with 
 
 ### 1. Prerequisites
 
-- Python 3.9+
-- NinjaTrader 8
-- API Keys:
-  - Google Gemini API (required)
-  - Twitter API v2 (optional)
-  - Reddit API (optional)
-  - NewsAPI (optional)
+- **Python 3.9+**
+- **Tradovate Account** (free demo available at [trader.tradovate.com](https://trader.tradovate.com))
+- **API Keys**:
+  - Gemini API (required for sentiment) - free at [makersuite.google.com](https://makersuite.google.com/app/apikey)
+  - Twitter, Reddit, News APIs (optional)
 
 ### 2. Installation
 
@@ -75,7 +85,7 @@ git clone https://github.com/mohit1157/tradovate.git
 cd tradovate
 
 # Create virtual environment
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
@@ -83,72 +93,53 @@ pip install -r requirements.txt
 
 # Copy and configure environment variables
 cp .env.example .env
-# Edit .env with your API keys
 ```
 
-### 3. Configure API Keys
+### 3. Configure Credentials
 
-Edit `.env` file with your API keys:
+Edit `.env` file:
 
 ```bash
-# Required
+# REQUIRED: Tradovate credentials
+TRADOVATE_USERNAME=your_username
+TRADOVATE_PASSWORD=your_password
+
+# REQUIRED for sentiment: Gemini API
 GEMINI_API_KEY=your_gemini_api_key
 
-# Optional (for enhanced sentiment)
-TWITTER_BEARER_TOKEN=your_twitter_bearer_token
-REDDIT_CLIENT_ID=your_reddit_client_id
-REDDIT_CLIENT_SECRET=your_reddit_client_secret
+# OPTIONAL: Social media APIs for enhanced sentiment
+TWITTER_BEARER_TOKEN=your_twitter_token
+REDDIT_CLIENT_ID=your_reddit_id
+REDDIT_CLIENT_SECRET=your_reddit_secret
 NEWS_API_KEY=your_news_api_key
 ```
 
-### 4. Run the Signal Server
+### 4. Run the Bot
 
 ```bash
-python run_server.py
+# Run with default settings (demo mode, MNQH5)
+python run_bot.py
+
+# Or with custom options
+python run_bot.py --symbol MESH5 --max-contracts 2
+
+# Technical only mode (no sentiment)
+python run_bot.py --no-sentiment
+
+# LIVE TRADING (use with caution!)
+python run_bot.py --live
 ```
 
-The server will start at `http://127.0.0.1:8787`
+## Command Line Options
 
-### 5. Install NinjaTrader Strategy
-
-1. Copy `src/Strategies/AutonomousFuturesBot.cs` to:
-   ```
-   Documents\NinjaTrader 8\bin\Custom\Strategies\
-   ```
-
-2. Open NinjaTrader 8
-3. Go to Tools → NinjaScript Editor
-4. Press F5 to compile
-
-### 6. Apply Strategy to Chart
-
-1. Open a chart (e.g., MNQ, ES)
-2. Right-click → Strategies → AutonomousFuturesBot
-3. Configure settings:
-   - Enable "Use External Signals" for AI-powered trading
-   - Set your risk parameters
-   - Start in **Sim mode** first!
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/signal?symbol=MNQ` | GET | Get trading signal for symbol |
-| `/health` | GET | Service health check |
-| `/metrics` | GET | Performance metrics |
-| `/kill?reason=xxx` | POST | Activate kill switch |
-| `/resume` | POST | Resume trading |
-| `/record-trade?pnl=xxx` | POST | Record trade P&L |
-
-### Signal Response Format
-
-```json
-{
-    "action": "BUY",
-    "qty": 1,
-    "confidence": 0.75
-}
-```
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--symbol` | MNQH5 | Trading symbol |
+| `--demo` | true | Use demo environment |
+| `--live` | false | Use live environment (real money!) |
+| `--no-sentiment` | false | Disable sentiment, use technicals only |
+| `--max-contracts` | 1 | Maximum contracts per trade |
+| `--max-daily-loss` | 500 | Daily loss limit |
 
 ## Configuration
 
@@ -156,91 +147,88 @@ The server will start at `http://127.0.0.1:8787`
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `CONFIDENCE_THRESHOLD` | 0.55 | Minimum confidence to execute trade |
-| `MAX_DAILY_LOSS` | 500.0 | Daily loss limit in dollars |
-| `MAX_TRADES_PER_DAY` | 10 | Maximum trades per day |
-| `COOLDOWN_SECONDS` | 30 | Seconds between trades |
+| `MAX_CONTRACTS` | 1 | Maximum contracts per trade |
+| `MAX_DAILY_LOSS` | 500.0 | Kill switch threshold |
+| `MAX_TRADES_PER_DAY` | 10 | Trade count limit |
+| `COOLDOWN_SECONDS` | 30 | Minimum time between trades |
+| `CONFIDENCE_THRESHOLD` | 0.55 | Minimum signal confidence |
+
+### Technical Indicators
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `FAST_EMA` | 9 | Fast EMA period |
+| `SLOW_EMA` | 21 | Slow EMA period |
+| `ATR_PERIOD` | 14 | ATR calculation period |
+| `STOP_ATR_MULT` | 1.5 | Stop loss = ATR × this |
+| `TARGET_ATR_MULT` | 2.0 | Take profit = ATR × this |
 
 ### Sentiment Weights
 
-| Source | Default Weight | Description |
-|--------|---------------|-------------|
-| Twitter | 0.3 | Weight for Twitter sentiment |
-| Reddit | 0.3 | Weight for Reddit sentiment |
-| News | 0.4 | Weight for news sentiment |
+| Source | Weight | Description |
+|--------|--------|-------------|
+| Twitter | 0.3 | Social media sentiment |
+| Reddit | 0.3 | Community sentiment |
+| News | 0.4 | Professional news |
 
 ## Project Structure
 
 ```
 tradovate/
 ├── config/
-│   └── settings.py          # Configuration management
+│   └── settings.py           # Configuration
 ├── src/
-│   ├── collectors/          # Data collection
-│   │   ├── twitter_collector.py
-│   │   ├── reddit_collector.py
-│   │   └── news_collector.py
-│   ├── sentiment/           # Sentiment analysis
-│   │   ├── gemini_analyzer.py
-│   │   ├── text_processor.py
-│   │   └── aggregator.py
-│   ├── decision/            # Signal generation
-│   │   ├── signal_generator.py
-│   │   └── risk_calculator.py
-│   ├── server/              # HTTP API server
-│   │   └── signal_server.py
-│   ├── database/            # Trade journaling
-│   │   └── repository.py
-│   └── Strategies/          # NinjaTrader strategy
-│       └── AutonomousFuturesBot.cs
-├── docs/
-│   ├── ARCHITECTURE.md      # System architecture
-│   └── EXTERNAL_SIGNALS.md  # Signal integration guide
-├── .env.example             # Environment template
-├── requirements.txt         # Python dependencies
-├── run_server.py           # Server entry point
+│   ├── tradovate/            # Tradovate API integration
+│   │   ├── client.py         # REST API client
+│   │   ├── websocket_client.py  # WebSocket for live data
+│   │   ├── market_data.py    # Market data handler
+│   │   └── order_manager.py  # Order & position management
+│   ├── indicators/
+│   │   └── indicators.py     # EMA, ATR calculations
+│   ├── collectors/           # Social media/news collection
+│   ├── sentiment/            # Gemini AI analysis
+│   ├── decision/             # Signal generation
+│   ├── bot/
+│   │   └── trading_bot.py    # Main trading bot
+│   └── server/               # Optional HTTP signal server
+├── .env.example              # Environment template
+├── requirements.txt          # Python dependencies
+├── run_bot.py               # Main entry point
 └── README.md
 ```
 
 ## Safety Features
 
-1. **Kill Switch**: Automatically stops trading when daily loss limit is reached
-2. **Service Health Check**: Falls back to technical signals if AI service is down
-3. **Confidence Threshold**: Only executes trades above minimum confidence
-4. **Position Limits**: Maximum contracts per trade and per day
-5. **Session Close**: Automatically exits positions before session close
+1. **Demo Mode Default**: Starts in simulation by default
+2. **Kill Switch**: Auto-stops when daily loss limit reached
+3. **Trade Limits**: Prevents overtrading
+4. **Confidence Threshold**: Only trades on high-confidence signals
+5. **Position Limits**: Maximum contracts enforced
+6. **Live Mode Confirmation**: Requires typing "YES" to confirm
 
-## NinjaTrader Strategy Parameters
+## Tradovate Symbol Format
 
-### Mode Configuration
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Use External Signals | false | Enable AI-powered sentiment signals |
-| External Signal URL | http://127.0.0.1:8787/signal?symbol={SYMBOL} | Signal server URL |
-| Minimum Confidence | 0.55 | Minimum confidence to execute |
+Futures symbols in Tradovate follow this format: `{ROOT}{MONTH}{YEAR}`
 
-### Technical Strategy
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Fast EMA Period | 9 | Fast EMA period |
-| Slow EMA Period | 21 | Slow EMA period |
-| ATR Period | 14 | ATR calculation period |
+| Month | Code |
+|-------|------|
+| January | F |
+| February | G |
+| March | H |
+| April | J |
+| May | K |
+| June | M |
+| July | N |
+| August | Q |
+| September | U |
+| October | V |
+| November | X |
+| December | Z |
 
-### Risk Management
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Stop Loss (ATR x) | 1.5 | Stop loss ATR multiplier |
-| Profit Target (ATR x) | 2.0 | Profit target ATR multiplier |
-| Max Contracts | 1 | Maximum contracts per trade |
-| Cooldown (seconds) | 30 | Seconds between trades |
-
-### Advanced Risk
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Enable Daily Loss Limit | true | Enable daily loss protection |
-| Max Daily Loss ($) | 500 | Stop trading at this loss |
-| Max Trades Per Day | 10 | Maximum daily trades |
-| Enable Trailing Stop | false | Use trailing stop instead |
+**Examples:**
+- `MNQH5` = Micro Nasdaq March 2025
+- `MESH5` = Micro S&P March 2025
+- `ESZ4` = E-mini S&P December 2024
 
 ## Development
 
@@ -250,29 +238,55 @@ tradovate/
 pytest tests/
 ```
 
-### Code Structure
+### Project Components
 
-- **Collectors**: Gather data from external sources (Twitter, Reddit, News)
-- **Sentiment**: Process and analyze text using Gemini AI
-- **Decision**: Generate trading signals with risk management
-- **Server**: FastAPI server exposing signals via HTTP
+- **Tradovate Client**: REST API for authentication, orders, account data
+- **WebSocket Client**: Real-time quotes, DOM, charts, order updates
+- **Market Data Handler**: Stores and processes live data
+- **Technical Indicators**: EMA, ATR calculations
+- **Sentiment Analysis**: Twitter, Reddit, News → Gemini AI
+- **Signal Generator**: Combines all signals into trading decisions
+- **Risk Calculator**: Position sizing, daily limits
 
 ## Disclaimer
 
 **IMPORTANT**: This software is for educational purposes only.
 
-- **Paper trade first**: Always test in simulation before using real money
-- **No guarantees**: Past performance does not guarantee future results
-- **Risk of loss**: Trading futures involves substantial risk of loss
-- **Your responsibility**: You are solely responsible for your trading decisions
+- **Always start with demo/sim trading**
+- **No guarantees of profit** - trading futures involves substantial risk
+- **You are responsible** for your own trading decisions
+- **Past performance** does not guarantee future results
+
+## API Keys Guide
+
+### Tradovate (Required)
+1. Go to [trader.tradovate.com](https://trader.tradovate.com)
+2. Create a free demo account
+3. Use your login credentials in `.env`
+
+### Gemini AI (Required for sentiment)
+1. Go to [makersuite.google.com](https://makersuite.google.com/app/apikey)
+2. Create a free API key
+3. Add to `.env` as `GEMINI_API_KEY`
+
+### Twitter (Optional)
+1. Go to [developer.twitter.com](https://developer.twitter.com)
+2. Create a project and get Bearer Token
+3. Add to `.env` as `TWITTER_BEARER_TOKEN`
+
+### Reddit (Optional)
+1. Go to [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps)
+2. Create a "script" application
+3. Add client ID and secret to `.env`
+
+### NewsAPI (Optional)
+1. Go to [newsapi.org](https://newsapi.org)
+2. Get a free API key
+3. Add to `.env` as `NEWS_API_KEY`
 
 ## License
 
 MIT License - See LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
 
 ## Support
 
