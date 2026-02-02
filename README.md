@@ -1,149 +1,280 @@
-# NinjaTrader Autonomous Futures Bot (Starter Project)
+# Autonomous Futures Trading Bot
 
-This zip contains a **starter NinjaTrader 8 NinjaScript strategy** that can run autonomously and (optionally) pull decisions from an external AI/sentiment service.
+An AI-powered autonomous futures trading bot that integrates NinjaTrader 8 with sentiment analysis from social media (Twitter/X, Reddit) and financial news, using Google Gemini for intelligent decision making.
 
-## What you get
+## Features
 
-- `AutonomousFuturesBot.cs` (NinjaScript Strategy)
-  - Rule-based mode: **EMA crossover** + **ATR-based stop/target**
-  - Optional external-signal mode: polls a local URL returning JSON (where you can run Gemini/news/social sentiment)
-- `signal_server.py` (tiny local example server you can replace with your real Gemini pipeline)
+### Sentiment Analysis
+- **Twitter/X Integration**: Real-time sentiment from financial Twitter, tracking cashtags and influential accounts
+- **Reddit Integration**: Monitors r/wallstreetbets, r/futures, r/stocks and other trading subreddits
+- **News Integration**: Aggregates sentiment from major financial news sources (NewsAPI, Alpha Vantage)
+- **Gemini AI**: Uses Google's Gemini Pro for advanced sentiment analysis and decision making
 
----
+### Trading Execution (NinjaTrader 8)
+- **Technical Analysis**: EMA crossover strategy with ATR-based risk management
+- **External Signal Mode**: Receives AI-powered signals from the sentiment analysis server
+- **Hybrid Approach**: Combines sentiment with technical signals for better decisions
 
-## 1) Install/prepare NinjaTrader 8
+### Risk Management
+- **Daily Loss Limits**: Automatic kill switch when daily loss exceeds threshold
+- **Trade Limits**: Maximum trades per day to prevent overtrading
+- **Position Sizing**: Confidence-based position sizing
+- **Trailing Stops**: Optional ATR-based trailing stops
+- **Cooldown Period**: Minimum time between trades
 
-1. Install **NinjaTrader 8 Desktop**.
-2. Use **Sim** (replay/sim account) first.
+## Architecture
 
----
-
-## 2) Add the strategy to NinjaTrader
-
-### Option A — Copy the `.cs` file manually (fastest)
-Copy:
-
-`src/Strategies/AutonomousFuturesBot.cs`
-
-to your NinjaTrader custom strategies folder:
-
-`Documents\NinjaTrader 8\bin\Custom\Strategies`  citeturn0search2turn0search11
-
-Then open NinjaTrader:
-- Go to **New > NinjaScript Editor**
-- Press **F5** (Compile)
-
-### Option B — Import a NinjaScript Add-On package
-NinjaTrader supports importing add-ons via:
-
-**Control Center > Tools > Import > NinjaScript Add-On** citeturn0search12
-
-(For vendor-style distribution, NinjaTrader also documents how to create a distribution/export package.) citeturn0search4
-
----
-
-## 3) Enable the strategy (autonomous execution)
-
-You can enable strategies from the **Control Center > Strategies tab**:
-- Right-click → **New Strategy**
-- Select `AutonomousFuturesBot`
-- Set instrument/timeframe
-- Check **Enable** to turn on automation citeturn0search10turn0search13
-
-NinjaTrader also documents enabling automated strategies directly on a chart. citeturn0search19
-
----
-
-## 4) How “autonomous” logic works in this starter
-
-### Rule-based mode (default)
-- Enter long when fast EMA crosses above slow EMA
-- Enter short when fast EMA crosses below slow EMA
-- Brackets:
-  - Stop = `StopAtrMult * ATR`
-  - Target = `TargetAtrMult * ATR`
-
-### External-signal mode (recommended for Gemini/sentiment)
-Set:
-- **Use External Signals** = `true`
-- **External Signal URL** = `http://127.0.0.1:8787/signal?symbol={SYMBOL}`
-
-The strategy runs a **background poller** (every ~2 seconds), stores the last decision, and `OnBarUpdate()` uses it when confidence ≥ 0.55.
-
-**Expected JSON:**
-```json
-{ "action": "BUY", "qty": 1, "confidence": 0.78 }
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DATA SOURCES                              │
+├──────────────┬──────────────┬──────────────┬────────────────┤
+│   Twitter    │    Reddit    │    News      │  Market Data   │
+└──────┬───────┴──────┬───────┴──────┬───────┴────────┬───────┘
+       │              │              │                │
+       └──────────────┼──────────────┘                │
+                      ▼                               │
+       ┌──────────────────────────────┐              │
+       │    GEMINI AI ANALYZER        │              │
+       │    (Sentiment Analysis)      │              │
+       └──────────────┬───────────────┘              │
+                      ▼                               │
+       ┌──────────────────────────────┐              │
+       │    SIGNAL SERVER (Python)    │              │
+       │    http://127.0.0.1:8787     │              │
+       └──────────────┬───────────────┘              │
+                      │ HTTP Polling                  │
+                      ▼                               ▼
+       ┌──────────────────────────────────────────────┐
+       │         NINJATRADER 8 STRATEGY               │
+       │         (AutonomousFuturesBot.cs)            │
+       └──────────────────────────────────────────────┘
+                      │
+                      ▼
+              ┌───────────────┐
+              │ Futures Market │
+              └───────────────┘
 ```
 
----
+## Quick Start
 
-## 5) Run the example external signal server
+### 1. Prerequisites
 
-From this project folder:
+- Python 3.9+
+- NinjaTrader 8
+- API Keys:
+  - Google Gemini API (required)
+  - Twitter API v2 (optional)
+  - Reddit API (optional)
+  - NewsAPI (optional)
+
+### 2. Installation
 
 ```bash
-cd src/ExternalSignalService
-python signal_server.py
+# Clone the repository
+git clone https://github.com/mohit1157/tradovate.git
+cd tradovate
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-Now NinjaTrader will be able to call:
+### 3. Configure API Keys
 
-`http://127.0.0.1:8787/signal?symbol={SYMBOL}`
+Edit `.env` file with your API keys:
 
-Replace the `compute_signal()` function with your real pipeline.
+```bash
+# Required
+GEMINI_API_KEY=your_gemini_api_key
 
----
+# Optional (for enhanced sentiment)
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+NEWS_API_KEY=your_news_api_key
+```
 
-## 6) Best ways to integrate NinjaTrader with an autonomous “brain”
+### 4. Run the Signal Server
 
-### A) In-platform (pure NinjaScript)
-Your entire strategy lives inside NinjaTrader.
-- ✅ Simplest deployment
-- ✅ Fast execution
-- ❌ Harder to integrate large ML stacks/LLMs
+```bash
+python run_server.py
+```
 
-### B) Hybrid (recommended): NinjaTrader executes, external service decides
-- NinjaScript handles **orders, brackets, safety**
-- Your external service handles:
-  - news/social ingest
-  - Gemini sentiment
-  - feature engineering
-  - final decision output
+The server will start at `http://127.0.0.1:8787`
 
-This project implements this hybrid pattern.
+### 5. Install NinjaTrader Strategy
 
-### C) External application controlling NinjaTrader through API
-NinjaTrader provides a developer guide for using an API DLL (`NinjaTrader.Client.dll`) to connect an external application with NinjaTrader. citeturn0search1
+1. Copy `src/Strategies/AutonomousFuturesBot.cs` to:
+   ```
+   Documents\NinjaTrader 8\bin\Custom\Strategies\
+   ```
 
-Use this when you want deeper integration than “poll a URL”, but it’s more complex than the hybrid approach.
+2. Open NinjaTrader 8
+3. Go to Tools → NinjaScript Editor
+4. Press F5 to compile
 
-### D) NinjaTrader “Trader APIs” (REST)
-NinjaTrader also offers REST APIs intended for client applications to connect to NinjaTrader’s infrastructure. citeturn0search9  
-(Useful if you want to automate through their broader ecosystem rather than only desktop-hosted logic.)
+### 6. Apply Strategy to Chart
 
----
+1. Open a chart (e.g., MNQ, ES)
+2. Right-click → Strategies → AutonomousFuturesBot
+3. Configure settings:
+   - Enable "Use External Signals" for AI-powered trading
+   - Set your risk parameters
+   - Start in **Sim mode** first!
 
-## Safety notes (important)
-- Start in **Sim**.
-- Add hard limits: max daily loss, max trades/hour, max position size, kill switch.
-- Watch out for:
-  - connection drops
-  - session breaks / illiquid periods
-  - order rejections
+## API Endpoints
 
----
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/signal?symbol=MNQ` | GET | Get trading signal for symbol |
+| `/health` | GET | Service health check |
+| `/metrics` | GET | Performance metrics |
+| `/kill?reason=xxx` | POST | Activate kill switch |
+| `/resume` | POST | Resume trading |
+| `/record-trade?pnl=xxx` | POST | Record trade P&L |
 
-## Files
+### Signal Response Format
 
-- `src/Strategies/AutonomousFuturesBot.cs`
-- `src/ExternalSignalService/signal_server.py`
-- `docs/EXTERNAL_SIGNALS.md`
+```json
+{
+    "action": "BUY",
+    "qty": 1,
+    "confidence": 0.75
+}
+```
 
----
+## Configuration
 
-## Next upgrade ideas (if you want “v2”)
-- OCO brackets with dynamic trailing stop
-- persistent state + trade journal (SQLite/Postgres)
-- live telemetry dashboard
-- reconnect-safe order reconciliation
-- richer JSON schema: regime, volatility, stop/target suggestions, invalidate price
+### Trading Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `CONFIDENCE_THRESHOLD` | 0.55 | Minimum confidence to execute trade |
+| `MAX_DAILY_LOSS` | 500.0 | Daily loss limit in dollars |
+| `MAX_TRADES_PER_DAY` | 10 | Maximum trades per day |
+| `COOLDOWN_SECONDS` | 30 | Seconds between trades |
+
+### Sentiment Weights
+
+| Source | Default Weight | Description |
+|--------|---------------|-------------|
+| Twitter | 0.3 | Weight for Twitter sentiment |
+| Reddit | 0.3 | Weight for Reddit sentiment |
+| News | 0.4 | Weight for news sentiment |
+
+## Project Structure
+
+```
+tradovate/
+├── config/
+│   └── settings.py          # Configuration management
+├── src/
+│   ├── collectors/          # Data collection
+│   │   ├── twitter_collector.py
+│   │   ├── reddit_collector.py
+│   │   └── news_collector.py
+│   ├── sentiment/           # Sentiment analysis
+│   │   ├── gemini_analyzer.py
+│   │   ├── text_processor.py
+│   │   └── aggregator.py
+│   ├── decision/            # Signal generation
+│   │   ├── signal_generator.py
+│   │   └── risk_calculator.py
+│   ├── server/              # HTTP API server
+│   │   └── signal_server.py
+│   ├── database/            # Trade journaling
+│   │   └── repository.py
+│   └── Strategies/          # NinjaTrader strategy
+│       └── AutonomousFuturesBot.cs
+├── docs/
+│   ├── ARCHITECTURE.md      # System architecture
+│   └── EXTERNAL_SIGNALS.md  # Signal integration guide
+├── .env.example             # Environment template
+├── requirements.txt         # Python dependencies
+├── run_server.py           # Server entry point
+└── README.md
+```
+
+## Safety Features
+
+1. **Kill Switch**: Automatically stops trading when daily loss limit is reached
+2. **Service Health Check**: Falls back to technical signals if AI service is down
+3. **Confidence Threshold**: Only executes trades above minimum confidence
+4. **Position Limits**: Maximum contracts per trade and per day
+5. **Session Close**: Automatically exits positions before session close
+
+## NinjaTrader Strategy Parameters
+
+### Mode Configuration
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Use External Signals | false | Enable AI-powered sentiment signals |
+| External Signal URL | http://127.0.0.1:8787/signal?symbol={SYMBOL} | Signal server URL |
+| Minimum Confidence | 0.55 | Minimum confidence to execute |
+
+### Technical Strategy
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Fast EMA Period | 9 | Fast EMA period |
+| Slow EMA Period | 21 | Slow EMA period |
+| ATR Period | 14 | ATR calculation period |
+
+### Risk Management
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Stop Loss (ATR x) | 1.5 | Stop loss ATR multiplier |
+| Profit Target (ATR x) | 2.0 | Profit target ATR multiplier |
+| Max Contracts | 1 | Maximum contracts per trade |
+| Cooldown (seconds) | 30 | Seconds between trades |
+
+### Advanced Risk
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Enable Daily Loss Limit | true | Enable daily loss protection |
+| Max Daily Loss ($) | 500 | Stop trading at this loss |
+| Max Trades Per Day | 10 | Maximum daily trades |
+| Enable Trailing Stop | false | Use trailing stop instead |
+
+## Development
+
+### Running Tests
+
+```bash
+pytest tests/
+```
+
+### Code Structure
+
+- **Collectors**: Gather data from external sources (Twitter, Reddit, News)
+- **Sentiment**: Process and analyze text using Gemini AI
+- **Decision**: Generate trading signals with risk management
+- **Server**: FastAPI server exposing signals via HTTP
+
+## Disclaimer
+
+**IMPORTANT**: This software is for educational purposes only.
+
+- **Paper trade first**: Always test in simulation before using real money
+- **No guarantees**: Past performance does not guarantee future results
+- **Risk of loss**: Trading futures involves substantial risk of loss
+- **Your responsibility**: You are solely responsible for your trading decisions
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+
+## Support
+
+- Issues: [GitHub Issues](https://github.com/mohit1157/tradovate/issues)
+- Documentation: See `/docs` folder
